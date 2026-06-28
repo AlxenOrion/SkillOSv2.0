@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SkillOS | Premium Learning Workspace</title>
+    
+    <!-- CSS and Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // CRUCIAL: Enable class-based dark mode in Tailwind CSS CDN
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --drag-overlay: rgba(255, 255, 255, 0.05);
+        }
+        .light {
+            --glass-bg: rgba(0, 0, 0, 0.02);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --drag-overlay: rgba(0, 0, 0, 0.03);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Responsive Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+
+        /* Elegant Tree Connectors */
+        .tree-line {
+            position: absolute;
+            left: -14px;
+            top: -16px;
+            bottom: 12px;
+            width: 1px;
+            border-left: 1px dashed var(--glass-border);
+        }
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            backdrop-filter: blur(16px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Drag over styling */
+        .drag-over {
+            background: var(--drag-overlay) !important;
+            border: 1px dashed var(--glass-border);
+        }
+
+        /* Safe margins for dynamic iOS viewports */
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 min-h-screen selection:bg-zinc-200 dark:selection:bg-zinc-800">
+
+    <!-- Mobile Drawer Overlay Background -->
+    <div id="drawerOverlay" onclick="App.closeAllDrawers()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300 opacity-0"></div>
+
+    <!-- Glass Header Navigation -->
+    <nav class="fixed top-0 w-full z-30 glass-panel border-r-0 border-l-0 border-t-0 px-4 lg:px-8 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <!-- Mobile Menu Toggle -->
+            <button onclick="App.toggleSidebar()" class="lg:hidden p-2 text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white transition-colors" aria-label="Toggle menu">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+            <div class="w-7 h-7 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center rounded-lg font-bold text-sm">S</div>
+            <h1 class="text-xs font-semibold tracking-widest uppercase opacity-80 hidden sm:block">SkillOS</h1>
+        </div>
+
+        <!-- View Controls (Roadmap vs Dashboard) -->
+        <div class="flex bg-zinc-200/50 dark:bg-zinc-900/50 p-1 rounded-lg gap-1">
+            <button onclick="App.setView('roadmap')" id="btnViewRoadmap" class="px-4 py-1 rounded-md text-xs font-medium transition-all bg-white dark:bg-zinc-800 dark:text-white text-zinc-900 shadow-sm">Roadmap</button>
+            <button onclick="App.setView('dashboard')" id="btnViewDashboard" class="px-4 py-1 rounded-md text-xs font-medium transition-all opacity-60 hover:opacity-100 dark:text-white text-zinc-900">Dashboard</button>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="App.toggleTheme()" class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-colors" aria-label="Toggle light or dark theme">
+                <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+            </button>
+            <!-- Desktop File Sync -->
+            <div class="hidden md:flex gap-2">
+                <button onclick="document.getElementById('importFile').click()" class="text-[10px] uppercase font-bold tracking-wider px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">Import</button>
+                <button onclick="App.exportData()" class="text-[10px] uppercase font-bold tracking-wider px-3 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">Export</button>
+            </div>
+            <button onclick="App.toggleNotes()" class="xl:hidden p-2 text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white transition-colors" aria-label="Toggle notes panel">
+                <i data-lucide="file-text" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hidden Input for File Import -->
+    <input type="file" id="importFile" class="hidden" accept=".json" onchange="App.importData(event)">
+
+    <!-- Core Layout Grid -->
+    <div class="max-w-[1600px] mx-auto flex pt-16 min-h-[calc(100vh-4rem)]">
+        
+        <!-- Left Sidebar (Drawer on mobile, stationary on desktop) -->
+        <aside id="sidebar" class="fixed lg:sticky lg:top-16 top-0 bottom-0 left-0 w-72 bg-zinc-50 dark:bg-zinc-950 lg:bg-transparent lg:dark:bg-transparent z-50 lg:z-10 p-6 border-r border-zinc-200 dark:border-zinc-800 lg:border-none flex flex-col gap-8 overflow-y-auto transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <div class="flex lg:hidden justify-between items-center pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                <span class="font-bold tracking-tight uppercase text-xs opacity-60">System Navigation</span>
+                <button onclick="App.toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- Roadmaps Section -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">My Roadmaps</h3>
+                    <button onclick="App.createRoadmap()" class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-900 rounded transition-colors"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                </div>
+                <div id="roadmapList" class="space-y-1">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Local Stats Box -->
+            <div class="glass-panel p-4 rounded-xl space-y-4 mt-auto">
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Selected Roadmap Info</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span>Roadmap Completion</span>
+                        <span id="statPercent">0%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-zinc-200 dark:bg-zinc-900 rounded-full overflow-hidden">
+                        <div id="statBar" class="h-full bg-zinc-950 dark:bg-white transition-all duration-700" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] opacity-50 font-medium pt-1">
+                        <span id="nodeCount">0 Tasks</span>
+                        <span id="activeTimer">00:00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Quick Import/Export inside Drawer -->
+            <div class="flex md:hidden gap-2 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                <button onclick="document.getElementById('importFile').click()" class="flex-1 text-[10px] py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg font-bold uppercase">Import</button>
+                <button onclick="App.exportData()" class="flex-1 text-[10px] py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg font-bold uppercase">Export</button>
+            </div>
+        </aside>
+
+        <!-- Center Workspace Panel -->
+        <main class="flex-grow px-4 lg:px-12 py-8 overflow-x-hidden">
+            
+            <!-- VIEW A: Roadmap Tree View -->
+            <div id="roadmapView" class="space-y-8 block">
+                <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                    <div class="space-y-1 flex-grow">
+                        <input type="text" id="activeRoadmapTitle" class="bg-transparent text-2xl lg:text-4xl font-extrabold outline-none w-full border-b border-transparent focus:border-zinc-300 dark:focus:border-zinc-700 transition-colors" value="...">
+                        <div class="flex items-center gap-2 text-xs opacity-40">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                            <span id="lastUpdated">Updated just now</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <!-- Quick actions bar -->
+                        <button onclick="App.addTask()" class="text-xs font-semibold px-4 py-2 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Objective
+                        </button>
+                        <button onclick="App.duplicateRoadmap()" class="p-2 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-lg transition-colors" title="Duplicate Roadmap">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Search & Filters -->
+                <div class="flex flex-col sm:flex-row gap-2 max-w-lg">
+                    <div class="relative flex-grow">
+                        <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 opacity-40"></i>
+                        <input type="text" id="treeSearch" placeholder="Filter current roadmap..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 dark:text-white text-zinc-900">
+                    </div>
+                </div>
+
+                <!-- Tree Root -->
+                <div id="taskTree" class="space-y-2 select-none">
+                    <!-- Recursively injected tree structures go here -->
+                </div>
+            </div>
+
+            <!-- VIEW B: Premium Analytics Dashboard -->
+            <div id="dashboardView" class="space-y-8 hidden">
+                <header class="pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                    <h2 class="text-2xl lg:text-4xl font-extrabold tracking-tight">Performance Workspace</h2>
+                    <p class="text-sm opacity-50 mt-1">Real-time metrics, streaks, and focus metrics.</p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <!-- Metric Card 1: Streak -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-xs opacity-50 uppercase font-bold tracking-wider">Learning Streak</span>
+                            <div class="text-3xl font-extrabold" id="dashStreak">3 Days</div>
+                        </div>
+                        <div class="p-3 bg-orange-500/10 text-orange-500 rounded-xl">
+                            <i data-lucide="flame" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Metric Card 2: Total Study Time -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-xs opacity-50 uppercase font-bold tracking-wider">Focus Counter</span>
+                            <div class="text-3xl font-extrabold" id="dashTime">00:00:00</div>
+                            <button onclick="App.toggleStopwatch()" id="btnStopwatch" class="text-[10px] mt-2 font-bold uppercase py-1 px-3 rounded bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center gap-1">
+                                <i data-lucide="play" class="w-2.5 h-2.5"></i> Start Session
+                            </button>
+                        </div>
+                        <div class="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                            <i data-lucide="clock" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Metric Card 3: Completion Analytics -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-xs opacity-50 uppercase font-bold tracking-wider">Overall Roadmap Progress</span>
+                            <div class="text-3xl font-extrabold" id="dashProgress">0%</div>
+                        </div>
+                        <div class="p-3 bg-blue-500/10 text-blue-500 rounded-xl">
+                            <i data-lucide="pie-chart" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Metric Card 4: Task Counts -->
+                    <div class="glass-panel p-6 rounded-2xl flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-xs opacity-50 uppercase font-bold tracking-wider">Total Tasks Done</span>
+                            <div class="text-3xl font-extrabold" id="dashCompletedTasks">0 / 0</div>
+                        </div>
+                        <div class="p-3 bg-purple-500/10 text-purple-500 rounded-xl">
+                            <i data-lucide="check-square" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Skill Breakdown List -->
+                <div class="glass-panel p-6 rounded-2xl space-y-4">
+                    <h3 class="text-md font-bold">Successfully Acquired Skills</h3>
+                    <div id="dashSkillsList" class="flex flex-wrap gap-2">
+                        <!-- Instantiated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Side Panel (Drawer on mobile/tablet, sticky on XL desktop) -->
+        <aside id="rightPanel" class="fixed xl:sticky xl:top-16 top-0 bottom-0 right-0 w-80 lg:w-96 bg-zinc-50 dark:bg-zinc-950 xl:bg-transparent xl:dark:bg-transparent z-50 xl:z-10 p-6 border-l border-zinc-200 dark:border-zinc-800 xl:border-none flex flex-col gap-6 overflow-y-auto transform translate-x-full xl:translate-x-0 transition-transform duration-300">
+            <div class="flex xl:hidden justify-between items-center pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                <span class="font-bold tracking-tight uppercase text-xs opacity-60">Task Workspace Inspector</span>
+                <button onclick="App.toggleNotes()"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- Notes Work Area -->
+            <div class="glass-panel p-6 rounded-2xl h-full flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Markdown Workspace</h3>
+                    <div id="saveIndicator" class="text-[10px] text-emerald-500 dark:text-emerald-400 opacity-0 transition-all flex items-center gap-1">
+                        <i data-lucide="cloud-lightning" class="w-3 h-3"></i> Syncing...
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <h2 id="activeTaskName" class="text-md font-bold tracking-tight opacity-90 line-clamp-2">Task Details</h2>
+                    <p class="text-[10px] opacity-45 uppercase font-mono" id="activeTaskPath">Select any target skill node</p>
+                </div>
+
+                <!-- Markdown Textarea -->
+                <textarea id="taskNotes" class="flex-grow bg-transparent text-sm leading-relaxed resize-none border border-transparent focus:border-transparent outline-none placeholder-zinc-300 dark:placeholder-zinc-800 py-2 border-t-zinc-200 dark:border-t-zinc-800 dark:text-white text-zinc-900" placeholder="Type Markdown here... Supports structural guides, auto-saving logic and rapid linking."></textarea>
+
+                <!-- Attached Resources Section -->
+                <div class="space-y-4 pt-4 border-t border-zinc-200 dark:border-t-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-[10px] font-bold uppercase tracking-widest opacity-40">Documentation & Links</h4>
+                        <button onclick="App.addResourcePrompt()" class="text-[10px] font-bold text-zinc-900 dark:text-white uppercase">+ Add</button>
+                    </div>
+                    <div id="resourceList" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- Populated dynamic lists of URLs -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Universal Alert/Toast System -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 glass-panel shadow-2xl px-6 py-3 rounded-xl text-xs font-semibold tracking-wider uppercase z-[100] flex items-center gap-3 opacity-0 pointer-events-none translate-y-4 transition-all">
+        <i data-lucide="activity" class="w-4 h-4 text-zinc-950 dark:text-white"></i>
+        <span id="toastMessage">Workspace Refreshed</span>
+    </div>
+
+    <!-- Core Scripting Engine -->
+    <script type="module">
+        class SkillOSWorkspace {
+            constructor() {
+                this.db = null;
+                this.activeRoadmapId = null;
+                this.activeTaskId = null;
+                
+                // Active view state
+                this.currentView = 'roadmap'; // 'roadmap' | 'dashboard'
+
+                // Stopwatch variables
+                this.stopwatchInterval = null;
+                this.stopwatchTime = 0; // seconds
+
+                this.init();
+            }
+
+            async init() {
+                this.loadDatabase();
+                this.renderRoadmaps();
+                this.renderActiveRoadmap();
+                this.setupCoreHandlers();
+                this.setupDragAndDrop();
+                this.startStreakChecker();
+                lucide.createIcons();
+            }
+
+            // --- LOCAL STORAGE DATA ENGINE ---
+            loadDatabase() {
+                const stored = localStorage.getItem('skillos_enterprise_v3');
+                if (stored) {
+                    try {
+                        this.db = JSON.parse(stored);
+                    } catch (e) {
+                        console.error("Local schema validation failed. Rebuilding storage structure...", e);
+                    }
+                }
+                
+                if (!this.db) {
+                    this.db = {
+                        settings: { theme: 'dark', streakDays: 1, lastActiveDay: new Date().toDateString() },
+                        studySessionSeconds: 0,
+                        roadmaps: [
+                            {
+                                id: 'r_initial',
+                                title: 'Software Engineering Architecture',
+                                updated: new Date().toISOString(),
+                                tasks: [
+                                    {
+                                        id: 't_init_1',
+                                        text: 'Fundamentals of Systems Design',
+                                        completed: false,
+                                        notes: 'Focus on scaling architectures and understanding foundational concepts.',
+                                        resources: [{ label: 'MDN Web Docs', url: 'https://developer.mozilla.org' }],
+                                        children: [
+                                            { id: 't_init_2', text: 'Networking Protocol Architectures (TCP/HTTP/gRPC)', completed: false, notes: '', resources: [], children: [] },
+                                            { id: 't_init_3', text: 'Stateful vs Stateless System Models', completed: false, notes: '', resources: [], children: [] }
+                                        ]
+                                    },
+                                    {
+                                        id: 't_init_4',
+                                        text: 'Modern Framework Paradigms',
+                                        completed: false,
+                                        notes: 'React, Vue, and architectural paradigms of reactivity.',
+                                        resources: [],
+                                        children: []
+                                    }
+                                ]
+                            }
+                        ]
+                    };
+                }
+
+                // Default active pointer validation
+                if (!this.activeRoadmapId && this.db.roadmaps.length > 0) {
+                    this.activeRoadmapId = this.db.roadmaps[0].id;
+                }
+                
+                // Initialize dark / light classes matching settings smoothly
+                const activeTheme = this.db.settings.theme || 'dark';
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(activeTheme);
+                
+                // Get timer state
+                this.stopwatchTime = this.db.studySessionSeconds || 0;
+                this.updateStopwatchDisplay();
+            }
+
+            save() {
+                this.db.studySessionSeconds = this.stopwatchTime;
+                localStorage.setItem('skillos_enterprise_v3', JSON.stringify(this.db));
+                this.updateStats();
+            }
+
+            // --- VIEW PORT TACTICAL CONTROLLER ---
+            setView(viewName) {
+                this.currentView = viewName;
+                const roadmapView = document.getElementById('roadmapView');
+                const dashboardView = document.getElementById('dashboardView');
+                const btnRoadmap = document.getElementById('btnViewRoadmap');
+                const btnDashboard = document.getElementById('btnViewDashboard');
+
+                if (viewName === 'roadmap') {
+                    roadmapView.classList.remove('hidden');
+                    dashboardView.classList.add('hidden');
+                    btnRoadmap.className = "px-4 py-1 rounded-md text-xs font-medium transition-all bg-white dark:bg-zinc-800 dark:text-white text-zinc-900 shadow-sm";
+                    btnDashboard.className = "px-4 py-1 rounded-md text-xs font-medium transition-all opacity-60 hover:opacity-100 dark:text-white text-zinc-900";
+                } else {
+                    roadmapView.classList.add('hidden');
+                    dashboardView.classList.remove('hidden');
+                    btnRoadmap.className = "px-4 py-1 rounded-md text-xs font-medium transition-all opacity-60 hover:opacity-100 dark:text-white text-zinc-900";
+                    btnDashboard.className = "px-4 py-1 rounded-md text-xs font-medium transition-all bg-white dark:bg-zinc-800 dark:text-white text-zinc-900 shadow-sm";
+                    this.renderDashboardData();
+                }
+            }
+
+            // --- RENDERING STRATEGIES ---
+            renderRoadmaps() {
+                const list = document.getElementById('roadmapList');
+                list.innerHTML = this.db.roadmaps.map(r => `
+                    <div onclick="App.setActiveRoadmap('${r.id}')" 
+                         class="group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all ${this.activeRoadmapId === r.id ? 'bg-zinc-200/50 dark:bg-zinc-900/60 font-semibold' : 'opacity-60 hover:opacity-100 hover:bg-zinc-200/20 dark:hover:bg-zinc-900/20'}">
+                        <span class="text-xs truncate max-w-[160px]">${r.title}</span>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="event.stopPropagation(); App.deleteRoadmap('${r.id}')" class="p-1 hover:text-red-400 transition-colors"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+
+            renderActiveRoadmap() {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                if (!roadmap) return;
+
+                document.getElementById('activeRoadmapTitle').value = roadmap.title;
+                document.getElementById('lastUpdated').innerText = `Updated ${new Date(roadmap.updated || Date.now()).toLocaleDateString()}`;
+                
+                const container = document.getElementById('taskTree');
+                container.innerHTML = '';
+
+                if (roadmap.tasks.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-center opacity-40">
+                            <i data-lucide="folder-open" class="w-8 h-8 mx-auto mb-2"></i>
+                            <span class="text-xs font-medium">Clear road. Add nested skills to start mapping.</span>
+                        </div>
+                    `;
+                } else {
+                    roadmap.tasks.forEach((task, index) => {
+                        container.appendChild(this.buildTaskBranch(task, 0, [index]));
+                    });
+                }
+
+                this.updateStats();
+                lucide.createIcons();
+            }
+
+            buildTaskBranch(task, depth, indexPaths) {
+                const el = document.createElement('div');
+                el.className = `task-item relative flex flex-col pl-3 lg:pl-6`;
+                el.dataset.id = task.id;
+                el.dataset.indexpath = JSON.stringify(indexPaths);
+                el.draggable = true;
+
+                // Responsive dynamic spacing cap
+                const responsiveLeftPadding = depth === 0 ? 0 : Math.min(depth * 12, 48);
+
+                el.innerHTML = `
+                    <div class="relative flex items-center justify-between group py-2 px-3 rounded-lg hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 transition-colors" style="margin-left: ${responsiveLeftPadding}px">
+                        ${depth > 0 ? `<div class="tree-line"></div>` : ''}
+                        
+                        <div class="flex items-center gap-3 flex-grow min-w-0">
+                            <div class="drag-handle cursor-grab opacity-0 group-hover:opacity-40 hover:opacity-100 p-0.5 transition-opacity">
+                                <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                            </div>
+                            
+                            <!-- Checkbox configured with premium emerald green success accent -->
+                            <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                                   onchange="App.toggleTask('${task.id}')"
+                                   class="w-4.5 h-4.5 rounded border-zinc-300 dark:border-zinc-800 bg-transparent cursor-pointer accent-emerald-500 dark:accent-emerald-400">
+                            
+                            <input type="text" value="${task.text}" 
+                                   onchange="App.renameTask('${task.id}', this.value)"
+                                   class="bg-transparent border-none outline-none text-sm font-medium flex-grow truncate py-1 pr-4 focus:border-b focus:border-zinc-300 dark:focus:border-zinc-700 dark:text-white text-zinc-900 ${task.completed ? 'line-through opacity-40' : ''}">
+                        </div>
+
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="App.addSubtask('${task.id}')" class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors" title="Create nested skill branch"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="App.focusTask('${task.id}')" class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors" title="Open Workspace Inspector"><i data-lucide="file-text" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="App.deleteTask('${task.id}')" class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-red-500 hover:text-red-600 transition-colors" title="Remove node"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+
+                        ${task.children.length > 0 ? `<span class="text-[9px] font-mono opacity-30">${Math.round(this.calculateTaskProgress(task))}%</span>` : ''}
+                    </div>
+                `;
+
+                const branchContainer = document.createElement('div');
+                branchContainer.appendChild(el);
+
+                if (task.children && task.children.length > 0) {
+                    task.children.forEach((child, cIdx) => {
+                        const childPaths = [...indexPaths, cIdx];
+                        branchContainer.appendChild(this.buildTaskBranch(child, depth + 1, childPaths));
+                    });
+                }
+
+                return branchContainer;
+            }
+
+            // --- WORKSPACE SYSTEM LOGIC & CRUD ---
+            findNode(tasks, id) {
+                for (let t of tasks) {
+                    if (t.id === id) return t;
+                    if (t.children) {
+                        const found = this.findNode(t.children, id);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            }
+
+            addTask() {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const newTask = {
+                    id: 't_' + Date.now(),
+                    text: 'Key skill path node',
+                    completed: false,
+                    notes: '',
+                    resources: [],
+                    children: []
+                };
+                roadmap.tasks.push(newTask);
+                roadmap.updated = new Date().toISOString();
+                this.save();
+                this.renderActiveRoadmap();
+                this.toast("Primary skill path added");
+            }
+
+            addSubtask(parentId) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const parent = this.findNode(roadmap.tasks, parentId);
+                if (parent) {
+                    parent.children.push({
+                        id: 't_' + Date.now(),
+                        text: 'Supporting core skill',
+                        completed: false,
+                        notes: '',
+                        resources: [],
+                        children: []
+                    });
+                    roadmap.updated = new Date().toISOString();
+                    this.save();
+                    this.renderActiveRoadmap();
+                    this.toast("Sub-skill branch created");
+                }
+            }
+
+            toggleTask(id) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const task = this.findNode(roadmap.tasks, id);
+                if (task) {
+                    task.completed = !task.completed;
+                    
+                    // Cascade completion to all child branches
+                    const cascade = (t, val) => {
+                        t.completed = val;
+                        t.children.forEach(c => cascade(c, val));
+                    };
+                    cascade(task, task.completed);
+                    
+                    roadmap.updated = new Date().toISOString();
+                    this.save();
+                    this.renderActiveRoadmap();
+                    this.toast(task.completed ? "Task path resolved" : "Task state reverted");
+                }
+            }
+
+            renameTask(id, val) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const task = this.findNode(roadmap.tasks, id);
+                if (task) {
+                    task.text = val;
+                    roadmap.updated = new Date().toISOString();
+                    this.save();
+                }
+            }
+
+            deleteTask(id) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const traverseAndKill = (list) => {
+                    const idx = list.findIndex(t => t.id === id);
+                    if (idx > -1) {
+                        list.splice(idx, 1);
+                        return true;
+                    }
+                    return list.some(t => traverseAndKill(t.children));
+                };
+                traverseAndKill(roadmap.tasks);
+                roadmap.updated = new Date().toISOString();
+                this.save();
+                this.renderActiveRoadmap();
+                this.toast("Skill Node Removed");
+            }
+
+            // --- INSPECTOR/NOTES PANEL LOGIC ---
+            focusTask(id) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const task = this.findNode(roadmap.tasks, id);
+                if (!task) return;
+
+                this.activeTaskId = id;
+                document.getElementById('activeTaskName').innerText = task.text;
+                document.getElementById('taskNotes').value = task.notes || '';
+                
+                // Clear and render active resource pills
+                this.renderResources(task);
+
+                if (window.innerWidth < 1280) {
+                    this.toggleNotes();
+                }
+            }
+
+            // --- RESOURCE PILLS MANAGEMENT ---
+            renderResources(task) {
+                const container = document.getElementById('resourceList');
+                container.innerHTML = '';
+                if (!task.resources || task.resources.length === 0) {
+                    container.innerHTML = `<span class="text-[10px] opacity-40 italic">No resources attached.</span>`;
+                    return;
+                }
+                
+                task.resources.forEach((res, index) => {
+                    const pill = document.createElement('div');
+                    pill.className = "flex items-center justify-between p-2 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs";
+                    pill.innerHTML = `
+                        <a href="${res.url}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 font-medium truncate max-w-[180px] hover:underline dark:text-white text-zinc-900">
+                            <i data-lucide="link-2" class="w-3 h-3 text-zinc-500"></i>
+                            ${res.label}
+                        </a>
+                        <button onclick="App.deleteResource(${index})" class="p-0.5 text-red-500 opacity-60 hover:opacity-100 transition-all"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                    `;
+                    container.appendChild(pill);
+                });
+                lucide.createIcons();
+            }
+
+            addResourcePrompt() {
+                if (!this.activeTaskId) {
+                    this.toast("Choose a skill node first");
+                    return;
+                }
+                const label = prompt("Enter a description/label for this reference:");
+                if (!label) return;
+                const url = prompt("Enter full destination URL (e.g., https://...):");
+                if (!url) return;
+
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const task = this.findNode(roadmap.tasks, this.activeTaskId);
+                if (task) {
+                    if (!task.resources) task.resources = [];
+                    task.resources.push({ label, url });
+                    this.save();
+                    this.renderResources(task);
+                    this.toast("Resource added");
+                }
+            }
+
+            deleteResource(index) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                const task = this.findNode(roadmap.tasks, this.activeTaskId);
+                if (task && task.resources) {
+                    task.resources.splice(index, 1);
+                    this.save();
+                    this.renderResources(task);
+                    this.toast("Resource deleted");
+                }
+            }
+
+            // --- DRAG & DROP INFRASTRUCTURE ---
+            setupDragAndDrop() {
+                let draggedId = null;
+
+                document.getElementById('taskTree').addEventListener('dragstart', (e) => {
+                    const targetNode = e.target.closest('.task-item');
+                    if (targetNode) {
+                        draggedId = targetNode.dataset.id;
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', draggedId);
+                    }
+                });
+
+                document.getElementById('taskTree').addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const dropTarget = e.target.closest('.task-item');
+                    if (dropTarget && dropTarget.dataset.id !== draggedId) {
+                        dropTarget.classList.add('drag-over');
+                    }
+                });
+
+                document.getElementById('taskTree').addEventListener('dragleave', (e) => {
+                    const dropTarget = e.target.closest('.task-item');
+                    if (dropTarget) {
+                        dropTarget.classList.remove('drag-over');
+                    }
+                });
+
+                document.getElementById('taskTree').addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const dropTarget = e.target.closest('.task-item');
+                    if (dropTarget) {
+                        dropTarget.classList.remove('drag-over');
+                        const targetId = dropTarget.dataset.id;
+                        if (draggedId && draggedId !== targetId) {
+                            this.reorderNode(draggedId, targetId);
+                        }
+                    }
+                });
+            }
+
+            reorderNode(sourceId, targetId) {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                let sourceNode = null;
+
+                // Find and extract source from tree structure
+                const extract = (list) => {
+                    const idx = list.findIndex(t => t.id === sourceId);
+                    if (idx > -1) {
+                        sourceNode = list.splice(idx, 1)[0];
+                        return true;
+                    }
+                    return list.some(t => extract(t.children));
+                };
+                
+                extract(roadmap.tasks);
+
+                if (!sourceNode) return;
+
+                // Insert source as sibling/child of the target node
+                const insert = (list) => {
+                    const idx = list.findIndex(t => t.id === targetId);
+                    if (idx > -1) {
+                        // Place as sibling in current depth branch
+                        list.splice(idx + 1, 0, sourceNode);
+                        return true;
+                    }
+                    return list.some(t => insert(t.children));
+                };
+
+                insert(roadmap.tasks);
+                roadmap.updated = new Date().toISOString();
+                this.save();
+                this.renderActiveRoadmap();
+                this.toast("Tree structure updated");
+            }
+
+            // --- COMPUTATIONAL METRICS ---
+            calculateTaskProgress(task) {
+                if (!task.children || task.children.length === 0) {
+                    return task.completed ? 100 : 0;
+                }
+                const total = task.children.length;
+                const completedCount = task.children.filter(c => this.calculateTaskProgress(c) === 100).length;
+                return (completedCount / total) * 100;
+            }
+
+            updateStats() {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                if (!roadmap) return;
+
+                let total = 0, done = 0;
+                const count = (list) => {
+                    list.forEach(t => {
+                        total++;
+                        if (t.completed) done++;
+                        count(t.children);
+                    });
+                };
+                count(roadmap.tasks);
+
+                const percent = Math.round((done / total) * 100) || 0;
+                document.getElementById('statPercent').innerText = `${percent}%`;
+                document.getElementById('statBar').style.width = `${percent}%`;
+                document.getElementById('nodeCount').innerText = `${total} Objectives total`;
+            }
+
+            // --- DASHBOARD CALCULATIONS & RENDERING ---
+            renderDashboardData() {
+                // Total completed overall tasks across active roadmap
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                let total = 0, done = 0;
+                const completedSkills = [];
+
+                const countAndCollect = (list) => {
+                    list.forEach(t => {
+                        total++;
+                        if (t.completed) {
+                            done++;
+                            completedSkills.push(t.text);
+                        }
+                        countAndCollect(t.children);
+                    });
+                };
+                countAndCollect(roadmap.tasks);
+
+                const percent = Math.round((done / total) * 100) || 0;
+
+                // Sync Elements
+                document.getElementById('dashStreak').innerText = `${this.db.settings.streakDays} Days`;
+                document.getElementById('dashProgress').innerText = `${percent}%`;
+                document.getElementById('dashCompletedTasks').innerText = `${done} / ${total}`;
+
+                // Render acquired skills dynamic cloud
+                const listContainer = document.getElementById('dashSkillsList');
+                listContainer.innerHTML = '';
+                if (completedSkills.length === 0) {
+                    listContainer.innerHTML = `<span class="text-xs opacity-50 italic">Acquire nested milestone skills to display targets here.</span>`;
+                } else {
+                    completedSkills.forEach(s => {
+                        const pill = document.createElement('span');
+                        pill.className = "text-xs font-semibold px-3 py-1.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-sm border border-zinc-200 dark:border-zinc-800 transition-transform duration-300 hover:scale-105 cursor-default";
+                        pill.innerText = s;
+                        listContainer.appendChild(pill);
+                    });
+                }
+            }
+
+            // --- PERSISTENT TIMER / STOPWATCH SYSTEM ---
+            toggleStopwatch() {
+                const btn = document.getElementById('btnStopwatch');
+                if (this.stopwatchInterval) {
+                    // Pause
+                    clearInterval(this.stopwatchInterval);
+                    this.stopwatchInterval = null;
+                    btn.innerHTML = `<i data-lucide="play" class="w-2.5 h-2.5"></i> Resume Session`;
+                    this.save();
+                    this.toast("Session Paused");
+                } else {
+                    // Start
+                    this.stopwatchInterval = setInterval(() => {
+                        this.stopwatchTime++;
+                        this.updateStopwatchDisplay();
+                        
+                        // Save timer state every 30 seconds as auto-save insurance
+                        if (this.stopwatchTime % 30 === 0) {
+                            this.save();
+                        }
+                    }, 1000);
+                    btn.innerHTML = `<i data-lucide="pause" class="w-2.5 h-2.5"></i> Pause Session`;
+                    this.toast("Workspace session started");
+                }
+                lucide.createIcons();
+            }
+
+            updateStopwatchDisplay() {
+                const format = (seconds) => {
+                    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+                    const s = (seconds % 60).toString().padStart(2, '0');
+                    return `${h}:${m}:${s}`;
+                };
+                const timeStr = format(this.stopwatchTime);
+                document.getElementById('activeTimer').innerText = timeStr;
+                document.getElementById('dashTime').innerText = timeStr;
+            }
+
+            // --- WORKSPACE TRANSITION UI MECHANICS ---
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('drawerOverlay');
+                const isOpen = sidebar.classList.contains('translate-x-0');
+
+                if (isOpen) {
+                    sidebar.classList.remove('translate-x-0');
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                    overlay.style.opacity = '0';
+                } else {
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebar.classList.add('translate-x-0');
+                    overlay.classList.remove('hidden');
+                    anime({
+                        targets: overlay,
+                        opacity: [0, 1],
+                        duration: 300,
+                        easing: 'easeOutSine'
+                    });
+                }
+            }
+
+            toggleNotes() {
+                const panel = document.getElementById('rightPanel');
+                const overlay = document.getElementById('drawerOverlay');
+                const isOpen = panel.classList.contains('translate-x-0');
+
+                if (isOpen) {
+                    panel.classList.remove('translate-x-0');
+                    panel.classList.add('translate-x-full');
+                    overlay.classList.add('hidden');
+                    overlay.style.opacity = '0';
+                } else {
+                    panel.classList.remove('translate-x-full');
+                    panel.classList.add('translate-x-0');
+                    overlay.classList.remove('hidden');
+                    anime({
+                        targets: overlay,
+                        opacity: [0, 1],
+                        duration: 300,
+                        easing: 'easeOutSine'
+                    });
+                }
+            }
+
+            closeAllDrawers() {
+                const sidebar = document.getElementById('sidebar');
+                const panel = document.getElementById('rightPanel');
+                const overlay = document.getElementById('drawerOverlay');
+
+                sidebar.classList.remove('translate-x-0');
+                sidebar.classList.add('-translate-x-full');
+                panel.classList.remove('translate-x-0');
+                panel.classList.add('translate-x-full');
+                
+                anime({
+                    targets: overlay,
+                    opacity: 0,
+                    duration: 200,
+                    easing: 'linear',
+                    complete: () => overlay.classList.add('hidden')
+                });
+            }
+
+            toggleTheme() {
+                const current = this.db.settings.theme;
+                const updated = current === 'dark' ? 'light' : 'dark';
+                this.db.settings.theme = updated;
+                
+                // Securely toggle Tailwind class configurations
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(updated);
+
+                this.save();
+                this.toast(`Theme shifted to ${updated}`);
+                lucide.createIcons();
+            }
+
+            // --- STREAK CALCULATOR ENGINE ---
+            startStreakChecker() {
+                const lastString = this.db.settings.lastActiveDay;
+                const today = new Date().toDateString();
+
+                if (lastString !== today) {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    
+                    if (lastString === yesterday.toDateString()) {
+                        this.db.settings.streakDays += 1;
+                    } else {
+                        this.db.settings.streakDays = 1; // reset streak if gap exists
+                    }
+                    this.db.settings.lastActiveDay = today;
+                    this.save();
+                }
+            }
+
+            // --- MULTIPLE ROADMAPS & IMPORT/EXPORT CONFIGURATION ---
+            setActiveRoadmap(id) {
+                this.activeRoadmapId = id;
+                this.save();
+                this.renderRoadmaps();
+                this.renderActiveRoadmap();
+                if (window.innerWidth < 1024) this.toggleSidebar();
+            }
+
+            createRoadmap() {
+                const id = 'r_' + Date.now();
+                this.db.roadmaps.push({
+                    id: id,
+                    title: 'New Skill Path Architecture',
+                    updated: new Date().toISOString(),
+                    tasks: []
+                });
+                this.activeRoadmapId = id;
+                this.save();
+                this.renderRoadmaps();
+                this.renderActiveRoadmap();
+                this.toast("Workspace created");
+            }
+
+            duplicateRoadmap() {
+                const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                if (!roadmap) return;
+
+                const dupId = 'r_' + Date.now();
+                const deepCopy = JSON.parse(JSON.stringify(roadmap.tasks));
+                
+                // Regenerate unique IDs for child duplication to prevent system cross-links
+                const rekey = (list) => {
+                    list.forEach(t => {
+                        t.id = 't_' + Math.random().toString(36).substring(2, 9);
+                        rekey(t.children);
+                    });
+                };
+                rekey(deepCopy);
+
+                this.db.roadmaps.push({
+                    id: dupId,
+                    title: `${roadmap.title} (Clone)`,
+                    updated: new Date().toISOString(),
+                    tasks: deepCopy
+                });
+                
+                this.activeRoadmapId = dupId;
+                this.save();
+                this.renderRoadmaps();
+                this.renderActiveRoadmap();
+                this.toast("Roadmap duplicated");
+            }
+
+            deleteRoadmap(id) {
+                if (this.db.roadmaps.length === 1) {
+                    this.toast("Workspace must preserve 1 roadmap");
+                    return;
+                }
+                const idx = this.db.roadmaps.findIndex(r => r.id === id);
+                if (idx > -1) {
+                    this.db.roadmaps.splice(idx, 1);
+                    this.activeRoadmapId = this.db.roadmaps[0].id;
+                    this.save();
+                    this.renderRoadmaps();
+                    this.renderActiveRoadmap();
+                    this.toast("Workspace wiped");
+                }
+            }
+
+            exportData() {
+                const data = JSON.stringify(this.db, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `SkillOS_Workspace_v3_${new Date().toISOString().slice(0,10)}.json`;
+                link.click();
+                this.toast("Exported Database JSON");
+            }
+
+            importData(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if (parsed.roadmaps && parsed.settings) {
+                            this.db = parsed;
+                            this.save();
+                            this.toast("Import Complete! Reloading...");
+                            setTimeout(() => window.location.reload(), 1200);
+                        } else {
+                            alert("Invalid workspace backup file structure.");
+                        }
+                    } catch (err) {
+                        alert("File parsing exception. Ensure valid JSON payload formatting.");
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            // --- ANIMATED TOAST SYSTEM ---
+            toast(msg) {
+                const toast = document.getElementById('toast');
+                document.getElementById('toastMessage').innerText = msg;
+                
+                anime.remove('#toast');
+                anime({
+                    targets: '#toast',
+                    opacity: [0, 1],
+                    translateY: [24, 0],
+                    duration: 400,
+                    easing: 'easeOutCubic',
+                    begin: () => { toast.style.pointerEvents = 'auto'; }
+                });
+
+                setTimeout(() => {
+                    anime({
+                        targets: '#toast',
+                        opacity: [1, 0],
+                        translateY: [0, 24],
+                        duration: 300,
+                        easing: 'easeInCubic',
+                        complete: () => { toast.style.pointerEvents = 'none'; }
+                    });
+                }, 2800);
+            }
+
+            setupCoreHandlers() {
+                // Search dynamic filter
+                document.getElementById('treeSearch').addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const items = document.querySelectorAll('.task-item');
+                    items.forEach(it => {
+                        const label = it.querySelector('input[type="text"]').value.toLowerCase();
+                        if (label.includes(term)) {
+                            it.style.opacity = '1';
+                            it.style.pointerEvents = 'auto';
+                        } else {
+                            it.style.opacity = '0.15';
+                        }
+                    });
+                });
+
+                // Auto save inputs and metadata modifications
+                document.getElementById('activeRoadmapTitle').addEventListener('input', (e) => {
+                    const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                    if (roadmap) {
+                        roadmap.title = e.target.value;
+                        this.save();
+                        this.renderRoadmaps();
+                    }
+                });
+
+                document.getElementById('taskNotes').addEventListener('input', (e) => {
+                    if (!this.activeTaskId) return;
+                    const roadmap = this.db.roadmaps.find(r => r.id === this.activeRoadmapId);
+                    const task = this.findNode(roadmap.tasks, this.activeTaskId);
+                    if (task) {
+                        task.notes = e.target.value;
+                        this.save();
+                        
+                        const indicator = document.getElementById('saveIndicator');
+                        indicator.style.opacity = '1';
+                        setTimeout(() => { indicator.style.opacity = '0'; }, 1200);
+                    }
+                });
+            }
+        }
+
+        window.App = new SkillOSWorkspace();
+    </script>
+</body>
+</html>
